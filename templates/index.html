@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PulseMap Pro</title>
+
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+        }
+
+        /* HEADER */
+        h2 {
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        /* SEARCH BAR */
+        #searchBox {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        input {
+            padding: 10px;
+            width: 250px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            background: #2d6cdf;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1b4fb3;
+        }
+
+        /* ERROR */
+        .error {
+            text-align: center;
+            color: red;
+            margin-bottom: 10px;
+        }
+
+        /* MAP */
+        #map {
+            width: 100vw;
+            height: 65vh;
+        }
+
+        /* STATS PANEL */
+        #stats {
+            width: 100%;
+            background: white;
+            padding: 20px;
+            border-top: 1px solid #ddd;
+            box-sizing: border-box;
+        }
+
+        #stats h3 {
+            margin-top: 0;
+        }
+
+        ul {
+            padding-left: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h2>🌍 PulseMap Pro — Global Sentiment Intelligence</h2>
+
+<!-- SEARCH -->
+<div id="searchBox">
+    <input id="search" placeholder="Enter country (e.g. Pakistan)">
+    <button onclick="searchCountry()">Search</button>
+</div>
+
+<p class="error" id="error"></p>
+
+<!-- MAP -->
+<div id="map"></div>
+
+<!-- STATS -->
+<div id="stats">
+    <h3>Country Stats</h3>
+    <p>Click or search a country to view details</p>
+</div>
+
+<script>
+
+// -----------------------------
+// 🌍 FULL WORLD HEATMAP
+// -----------------------------
+function loadMap() {
+
+    const data = [{
+        type: "choropleth",
+        locationmode: "country names",
+
+        locations: [
+            "Pakistan", "India", "United States", "Germany", "Japan",
+            "China", "France", "United Kingdom", "Brazil", "Canada",
+            "Australia", "Russia", "South Africa", "Italy", "Spain"
+        ],
+
+        // 🌈 SENTIMENT VALUES (-0.5 to +0.5)
+        z: [
+            0.2, -0.1, 0.4, 0.3, 0.1,
+            -0.2, 0.35, 0.25, -0.15, 0.3,
+            0.05, -0.3, 0.1, 0.2, 0.15
+        ],
+
+        zmin: -0.5,
+        zmax: 0.5,
+
+        colorscale: [
+            [0, "#d73027"],   // red (negative)
+            [0.5, "#ffffbf"], // neutral
+            [1, "#1a9850"]    // green (positive)
+        ],
+
+        colorbar: {
+            title: "Sentiment"
+        },
+
+        hovertemplate: "<b>%{location}</b><br>Sentiment: %{z}<extra></extra>"
+    }];
+
+    const layout = {
+        title: "🌍 Global News Sentiment Heatmap",
+
+        geo: {
+            projection: { type: "natural earth" },
+            showframe: false,
+            showcoastlines: false,
+            bgcolor: "#f5f7fb"
+        },
+
+        margin: { t: 50, l: 0, r: 0, b: 0 },
+        paper_bgcolor: "#f5f7fb"
+    };
+
+    Plotly.newPlot("map", data, layout, { responsive: true });
+}
+
+loadMap();
+
+
+// -----------------------------
+// 🔍 SEARCH COUNTRY
+// -----------------------------
+async function searchCountry() {
+
+    const name = document.getElementById("search").value;
+    const errorBox = document.getElementById("error");
+
+    errorBox.innerText = "";
+
+    if (!name) {
+        errorBox.innerText = "Please enter a country name";
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/country/${name}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+            errorBox.innerText = "❌ Country not found";
+            return;
+        }
+
+        document.getElementById("stats").innerHTML = `
+            <h3>${data.country}</h3>
+            <p><b>Sentiment:</b> ${data.sentiment}</p>
+            <h4>Top Headlines</h4>
+            <ul>
+                ${data.articles.map(a => `<li>${a}</li>`).join("")}
+            </ul>
+        `;
+
+    } catch (err) {
+        errorBox.innerText = "Server error. Try again.";
+    }
+}
+
+</script>
+
+</body>
+</html>
