@@ -1,7 +1,7 @@
 import requests
 
-def get_country(name):
 
+def get_country(name):
     try:
         r = requests.get(
             f"https://restcountries.com/v3.1/name/{name}",
@@ -16,9 +16,10 @@ def get_country(name):
 
         return {
             "name": data["name"]["common"],
+            "flag": data.get("flag", ""),
             "lat": latlng[0],
             "lon": latlng[1]
         }
 
-    except:
+    except Exception:
         return None

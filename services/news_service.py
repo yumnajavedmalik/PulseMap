@@ -1,10 +1,17 @@
 import requests
+import os
+from dotenv import load_dotenv
 
-GNEWS_API_KEY = "46b0639018ddca6cf09009957c5c0cc3"
+load_dotenv()
+
+GNEWS_API_KEY = os.getenv("GNEWS_API_KEY")
+
 
 def get_news(country):
-
     try:
+        if not GNEWS_API_KEY:
+            return []
+
         url = (
             f"https://gnews.io/api/v4/search"
             f"?q={country}"
@@ -19,8 +26,12 @@ def get_news(country):
             return []
 
         data = r.json()
+        articles = data.get("articles", [])
 
-        return [a["title"] for a in data.get("articles", [])]
+        return [
+            {"title": a["title"], "url": a["url"]}
+            for a in articles
+        ]
 
-    except:
+    except Exception:
         return []

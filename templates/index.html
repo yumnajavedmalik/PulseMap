@@ -1,155 +1,200 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>PulseMap Pro</title>
-
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-
     <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
-            margin: 0;
             font-family: Arial, sans-serif;
             background: #f5f7fb;
+            min-height: 100vh;
         }
 
-        /* HEADER */
-        h2 {
+        header {
             text-align: center;
-            margin: 15px 0;
+            padding: 20px;
+            background: white;
+            border-bottom: 1px solid #ddd;
         }
 
-        /* SEARCH BAR */
+        header h1 { font-size: 1.6rem; margin-bottom: 12px; }
+
         #searchBox {
             display: flex;
             justify-content: center;
             gap: 10px;
-            margin-bottom: 10px;
         }
 
         input {
-            padding: 10px;
-            width: 250px;
+            padding: 10px 14px;
+            width: 260px;
             border-radius: 8px;
             border: 1px solid #ccc;
+            font-size: 1rem;
         }
 
+        input:focus { outline: none; border-color: #2d6cdf; }
+
         button {
-            padding: 10px 15px;
+            padding: 10px 18px;
             border: none;
             background: #2d6cdf;
             color: white;
             border-radius: 8px;
             cursor: pointer;
+            font-size: 1rem;
         }
 
-        button:hover {
-            background: #1b4fb3;
-        }
+        button:hover { background: #1b4fb3; }
+        button:disabled { background: #93b4f0; cursor: not-allowed; }
 
-        /* ERROR */
-        .error {
+        #error {
             text-align: center;
-            color: red;
-            margin-bottom: 10px;
+            color: #c0392b;
+            margin: 8px 0;
+            min-height: 20px;
+            font-size: 0.9rem;
         }
 
-        /* MAP */
-        #map {
-            width: 100vw;
-            height: 65vh;
-        }
+        #map { width: 100%; height: 60vh; }
 
-        /* STATS PANEL */
         #stats {
-            width: 100%;
             background: white;
-            padding: 20px;
+            padding: 24px;
             border-top: 1px solid #ddd;
-            box-sizing: border-box;
         }
 
-        #stats h3 {
-            margin-top: 0;
+        #stats h3 { font-size: 1.2rem; margin-bottom: 12px; }
+
+        .sentiment-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.95rem;
+            margin-bottom: 14px;
         }
 
-        ul {
-            padding-left: 20px;
+        .positive { background: #d4edda; color: #155724; }
+        .negative { background: #f8d7da; color: #721c24; }
+        .neutral  { background: #fff3cd; color: #856404; }
+
+        .no-news {
+            color: #888;
+            font-style: italic;
+            margin-top: 8px;
+        }
+
+        ul { padding-left: 0; list-style: none; margin-top: 8px; }
+
+        ul li {
+            padding: 6px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.9rem;
+        }
+
+        ul li a {
+            color: #2d6cdf;
+            text-decoration: none;
+        }
+
+        ul li a:hover { text-decoration: underline; }
+
+        #history {
+            text-align: center;
+            padding: 8px;
+            font-size: 0.85rem;
+            color: #555;
+        }
+
+        .history-tag {
+            display: inline-block;
+            background: #e8edf7;
+            border-radius: 12px;
+            padding: 3px 10px;
+            margin: 2px;
+            cursor: pointer;
+        }
+
+        .history-tag:hover { background: #d0d9f0; }
+
+        #loading {
+            text-align: center;
+            color: #2d6cdf;
+            padding: 6px;
+            font-size: 0.9rem;
+            min-height: 24px;
         }
     </style>
 </head>
-
 <body>
 
-<h2>🌍 PulseMap Pro — Global Sentiment Intelligence</h2>
+<header>
+    <h1>🌍 PulseMap Pro — Global Sentiment Intelligence</h1>
+    <div id="searchBox">
+        <input id="search" placeholder="Enter a country (e.g. Pakistan)" />
+        <button id="searchBtn" onclick="searchCountry()">Search</button>
+    </div>
+</header>
 
-<!-- SEARCH -->
-<div id="searchBox">
-    <input id="search" placeholder="Enter country (e.g. Pakistan)">
-    <button onclick="searchCountry()">Search</button>
-</div>
+<p id="error"></p>
+<p id="loading"></p>
+<div id="history"></div>
 
-<p class="error" id="error"></p>
-
-<!-- MAP -->
 <div id="map"></div>
 
-<!-- STATS -->
 <div id="stats">
     <h3>Country Stats</h3>
-    <p>Click or search a country to view details</p>
+    <p style="color:#888">Search a country to see its news sentiment.</p>
 </div>
 
 <script>
 
-// -----------------------------
-// 🌍 FULL WORLD HEATMAP
-// -----------------------------
-function loadMap() {
+const searchHistory = [];
 
+// allow Enter key to trigger search
+document.getElementById("search").addEventListener("keydown", function(e) {
+    if (e.key === "Enter") searchCountry();
+});
+
+// ----------------------
+// INITIAL HEATMAP
+// ----------------------
+function loadMap() {
     const data = [{
         type: "choropleth",
         locationmode: "country names",
-
         locations: [
             "Pakistan", "India", "United States", "Germany", "Japan",
             "China", "France", "United Kingdom", "Brazil", "Canada",
             "Australia", "Russia", "South Africa", "Italy", "Spain"
         ],
-
-        // 🌈 SENTIMENT VALUES (-0.5 to +0.5)
         z: [
             0.2, -0.1, 0.4, 0.3, 0.1,
             -0.2, 0.35, 0.25, -0.15, 0.3,
             0.05, -0.3, 0.1, 0.2, 0.15
         ],
-
         zmin: -0.5,
         zmax: 0.5,
-
         colorscale: [
-            [0, "#d73027"],   // red (negative)
-            [0.5, "#ffffbf"], // neutral
-            [1, "#1a9850"]    // green (positive)
+            [0, "#d73027"],
+            [0.5, "#ffffbf"],
+            [1, "#1a9850"]
         ],
-
-        colorbar: {
-            title: "Sentiment"
-        },
-
+        colorbar: { title: "Sentiment" },
         hovertemplate: "<b>%{location}</b><br>Sentiment: %{z}<extra></extra>"
     }];
 
     const layout = {
-        title: "🌍 Global News Sentiment Heatmap",
-
         geo: {
             projection: { type: "natural earth" },
             showframe: false,
             showcoastlines: false,
             bgcolor: "#f5f7fb"
         },
-
-        margin: { t: 50, l: 0, r: 0, b: 0 },
+        margin: { t: 20, l: 0, r: 0, b: 0 },
         paper_bgcolor: "#f5f7fb"
     };
 
@@ -158,46 +203,102 @@ function loadMap() {
 
 loadMap();
 
-
-// -----------------------------
-// 🔍 SEARCH COUNTRY
-// -----------------------------
+// ----------------------
+// SEARCH
+// ----------------------
 async function searchCountry() {
-
-    const name = document.getElementById("search").value;
+    const input = document.getElementById("search");
+    const name = input.value.trim();
     const errorBox = document.getElementById("error");
+    const loadingBox = document.getElementById("loading");
+    const btn = document.getElementById("searchBtn");
 
     errorBox.innerText = "";
 
     if (!name) {
-        errorBox.innerText = "Please enter a country name";
+        errorBox.innerText = "Please enter a country name.";
         return;
     }
 
+    // loading state
+    btn.disabled = true;
+    btn.innerText = "Searching...";
+    loadingBox.innerText = "⏳ Fetching news and sentiment...";
+
     try {
-        const res = await fetch(`/api/country/${name}`);
+        const res = await fetch(`/api/country/${encodeURIComponent(name)}`);
         const data = await res.json();
 
         if (!res.ok) {
-            errorBox.innerText = "❌ Country not found";
+            errorBox.innerText = "❌ " + data.error;
             return;
         }
 
+        // update map dynamically for this country
+        Plotly.restyle("map", {
+            locations: [[...document.querySelector("#map").data[0].locations, data.country]],
+            z: [[...document.querySelector("#map").data[0].z, data.sentiment]]
+        });
+
+        // sentiment badge color
+        let badgeClass = "neutral";
+        if (data.sentiment > 0.1) badgeClass = "positive";
+        else if (data.sentiment < -0.1) badgeClass = "negative";
+
+        // articles list
+        let articleHTML = "";
+        if (data.no_news) {
+            articleHTML = `<p class="no-news">No recent English news found for this country.</p>`;
+        } else {
+            articleHTML = `
+                <h4 style="margin-bottom:8px">Top Headlines</h4>
+                <ul>
+                    ${data.articles.map(a =>
+                        `<li><a href="${a.url}" target="_blank">${a.title}</a></li>`
+                    ).join("")}
+                </ul>`;
+        }
+
         document.getElementById("stats").innerHTML = `
-            <h3>${data.country}</h3>
-            <p><b>Sentiment:</b> ${data.sentiment}</p>
-            <h4>Top Headlines</h4>
-            <ul>
-                ${data.articles.map(a => `<li>${a}</li>`).join("")}
-            </ul>
+            <h3>${data.flag} ${data.country}</h3>
+            <span class="sentiment-badge ${badgeClass}">
+                Sentiment: ${data.sentiment} — ${data.sentiment_label}
+            </span>
+            ${articleHTML}
         `;
 
+        // update search history
+        if (!searchHistory.includes(data.country)) {
+            searchHistory.unshift(data.country);
+            if (searchHistory.length > 5) searchHistory.pop();
+            renderHistory();
+        }
+
     } catch (err) {
-        errorBox.innerText = "Server error. Try again.";
+        errorBox.innerText = "⚠️ Server error. Please try again.";
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "Search";
+        loadingBox.innerText = "";
     }
 }
 
-</script>
+// ----------------------
+// HISTORY
+// ----------------------
+function renderHistory() {
+    if (searchHistory.length === 0) return;
+    document.getElementById("history").innerHTML =
+        "Recent: " + searchHistory.map(c =>
+            `<span class="history-tag" onclick="quickSearch('${c}')">${c}</span>`
+        ).join("");
+}
 
+function quickSearch(name) {
+    document.getElementById("search").value = name;
+    searchCountry();
+}
+
+</script>
 </body>
 </html>

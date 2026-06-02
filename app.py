@@ -14,26 +14,39 @@ def home():
 @app.route("/api/country/<name>")
 def country_api(name):
 
+    name = name.strip()
+    if not name:
+        return jsonify({"error": "Please enter a country name"}), 400
+
     geo = get_country(name)
 
     if not geo:
-        return jsonify({
-            "error": "Country not found"
-        }), 404
+        return jsonify({"error": "Country not found. Try a different spelling."}), 404
 
     news = get_news(name)
 
     if not news:
         sentiment = 0
+        sentiment_label = "Neutral"
     else:
         sentiment = sum([get_score(n) for n in news]) / len(news)
+        sentiment = round(sentiment, 2)
+        if sentiment > 0.1:
+            sentiment_label = "Positive 😊"
+        elif sentiment < -0.1:
+            sentiment_label = "Negative 😟"
+        else:
+            sentiment_label = "Neutral 😐"
 
     return jsonify({
         "country": geo["name"],
+        "flag": geo["flag"],
         "lat": geo["lat"],
         "lon": geo["lon"],
-        "sentiment": round(sentiment, 2),
-        "articles": news
+        "sentiment": sentiment,
+        "sentiment_label": sentiment_label,
+        "articles": news,
+        "no_news": len(news) == 0
     })
 
 
